@@ -1,0 +1,369 @@
+<!DOCTYPE html>
+<html lang="fr">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LAB 2.1 - Spark Partitions & Map Operations</title>
+    <style>
+        @page {
+            size: A4;
+            margin: 2cm;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.6;
+            color: #2c3e50;
+            background: white;
+            padding: 40px;
+            max-width: 900px;
+            margin: 0 auto;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 40px;
+            padding-bottom: 20px;
+            border-bottom: 3px solid #3498db;
+        }
+
+        h1 {
+            color: #2c3e50;
+            font-size: 32px;
+            margin-bottom: 10px;
+        }
+
+        .subtitle {
+            color: #7f8c8d;
+            font-size: 16px;
+            font-style: italic;
+        }
+
+        h2 {
+            color: #2980b9;
+            font-size: 24px;
+            margin-top: 40px;
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #ecf0f1;
+        }
+
+        h3 {
+            color: #16a085;
+            font-size: 18px;
+            margin-top: 25px;
+            margin-bottom: 15px;
+        }
+
+        .question {
+            background: #ecf0f1;
+            padding: 15px;
+            border-left: 4px solid #3498db;
+            margin: 20px 0 10px 0;
+            font-weight: 600;
+            color: #34495e;
+        }
+
+        .answer {
+            background: #fff;
+            padding: 15px 20px;
+            margin-bottom: 20px;
+            border-left: 4px solid #2ecc71;
+        }
+
+        .answer-label {
+            color: #27ae60;
+            font-weight: bold;
+            display: block;
+            margin-bottom: 8px;
+        }
+
+        ul {
+            margin-left: 30px;
+            margin-top: 10px;
+        }
+
+        li {
+            margin-bottom: 8px;
+        }
+
+        code {
+            background: #f8f9fa;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-family: 'Courier New', monospace;
+            color: #e74c3c;
+            font-size: 14px;
+        }
+
+        pre {
+            background: #2c3e50;
+            color: #ecf0f1;
+            padding: 20px;
+            border-radius: 5px;
+            overflow-x: auto;
+            margin: 15px 0;
+            font-family: 'Courier New', monospace;
+            font-size: 13px;
+            line-height: 1.5;
+        }
+
+        .key-points {
+            background: #fff3cd;
+            border-left: 4px solid #ffc107;
+            padding: 20px;
+            margin: 30px 0;
+        }
+
+        .key-points h3 {
+            color: #856404;
+            margin-top: 0;
+        }
+
+        .key-points ul {
+            margin-top: 15px;
+        }
+
+        .arrow {
+            color: #3498db;
+            font-weight: bold;
+        }
+
+        .print-btn {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: #3498db;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+            transition: background 0.3s;
+        }
+
+        .print-btn:hover {
+            background: #2980b9;
+        }
+
+        @media print {
+            body {
+                padding: 0;
+            }
+
+            .print-btn {
+                display: none;
+            }
+
+            h2 {
+                page-break-before: always;
+            }
+
+            h2:first-of-type {
+                page-break-before: avoid;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <button class="print-btn" onclick="window.print()">📄 Imprimer / Sauvegarder en PDF</button>
+
+    <div class="header">
+        <h1>LAB 2.1 - Apache Spark</h1>
+        <p class="subtitle">Partitions & Map Operations - Guide Complet</p>
+    </div>
+
+    <h2>PART A : Understanding Partitions</h2>
+
+    <div class="question">
+        1. What is the default number of partitions on your machine?
+    </div>
+    <div class="answer">
+        <span class="answer-label">Réponse :</span>
+        En mode local (<code>local[*]</code> ou <code>local</code>), le nombre par défaut de partitions est égal au
+        nombre de cœurs CPU de votre machine.
+        <ul>
+            <li>Typiquement 4, 8, ou 16 selon votre laptop/desktop</li>
+            <li>Vous pouvez le vérifier avec : <code>sc.defaultParallelism</code></li>
+        </ul>
+    </div>
+
+    <div class="question">
+        2. What happens to execution time as partitions increase from 1 to 16?
+    </div>
+    <div class="answer">
+        <span class="answer-label">Réponse :</span>
+        <ul>
+            <li><strong>Avec 1 partition</strong> <span class="arrow">→</span> très lent (pas de parallélisme, tout
+                s'exécute sur un seul cœur)</li>
+            <li><strong>2 à 8 partitions</strong> <span class="arrow">→</span> temps d'exécution diminue
+                significativement (meilleure utilisation du CPU)</li>
+            <li><strong>Au-delà de ~8–12 partitions</strong> (sur un laptop typique) <span class="arrow">→</span> le
+                temps recommence à augmenter à cause du overhead des tâches, du scheduling des threads et des appels de
+                fonctions</li>
+        </ul>
+        <strong>Optimal :</strong> généralement 2–4 × nombre de cœurs (ex: 8–16 sur une machine 4 cœurs)
+    </div>
+
+    <div class="question">
+        3. What's the difference between repartition() and coalesce()?
+    </div>
+    <div class="answer">
+        <span class="answer-label">Réponse :</span>
+        <ul>
+            <li><code>repartition(n)</code> <span class="arrow">→</span> déclenche toujours un shuffle complet (les
+                données sont redistribuées sur toutes les n partitions), peut augmenter ou diminuer les partitions</li>
+            <li><code>coalesce(n)</code> <span class="arrow">→</span> essaie d'éviter le shuffle lors de la réduction de
+                partitions (fusionne les partitions existantes), beaucoup plus rapide lors de la réduction, ne peut pas
+                augmenter le nombre de partitions</li>
+        </ul>
+        <strong>Utilisation :</strong> Utilisez <code>coalesce()</code> pour réduire les partitions,
+        <code>repartition()</code> quand vous devez augmenter ou rééquilibrer uniformément
+    </div>
+
+    <div class="question">
+        4. When would you use more partitions vs fewer partitions?
+    </div>
+    <div class="answer">
+        <span class="answer-label">Réponse :</span>
+        <ul>
+            <li><strong>Plus de partitions</strong> <span class="arrow">→</span> pour les grands datasets, haut
+                parallélisme, meilleure utilisation du CPU, surtout avec beaucoup de cœurs</li>
+            <li><strong>Moins de partitions</strong> <span class="arrow">→</span> petits datasets, réduire l'overhead,
+                éviter la latence de lancement des tâches, lors de traitements lourds par enregistrement</li>
+        </ul>
+        <strong>Règle d'or :</strong> 2–4 partitions par cœur CPU, chaque partition ~100–200 MB
+    </div>
+
+    <h2>PART B : Map Operations</h2>
+
+    <div class="question">
+        1. What does the map() transformation return?
+    </div>
+    <div class="answer">
+        <span class="answer-label">Réponse :</span>
+        Un nouveau RDD où chaque élément d'entrée est transformé par la fonction fournie. C'est une transformation
+        un-à-un (même nombre d'éléments avant et après).
+    </div>
+
+    <div class="question">
+        2. When should you use mapPartitions() instead of map()?
+    </div>
+    <div class="answer">
+        <span class="answer-label">Réponse :</span>
+        Utilisez <code>mapPartitions()</code> quand :
+        <ul>
+            <li>Vous avez un setup coûteux par tâche (ex: connexion base de données, chargement de modèle,
+                initialisation d'objets lourds)</li>
+            <li>Vous voulez traiter les données par lots (meilleure utilisation de la mémoire)</li>
+            <li>La performance est critique et le coût du setup domine</li>
+        </ul>
+        <strong>Exemple :</strong> Ouvrir une connexion DB une fois par partition au lieu d'une fois par enregistrement
+        <span class="arrow">→</span> énorme gain de vitesse
+    </div>
+
+    <div class="question">
+        3. Can map() change the number of elements in the RDD?
+    </div>
+    <div class="answer">
+        <span class="answer-label">Réponse :</span>
+        Non. <code>map()</code> est une transformation un-à-un <span class="arrow">→</span> exactement un élément de
+        sortie par élément d'entrée.<br><br>
+        Pour changer le nombre d'éléments, utilisez : <code>flatMap()</code>, <code>filter()</code>,
+        <code>union()</code>, etc.
+    </div>
+
+    <h2>PART C : Practice Problems - Solutions</h2>
+
+    <h3>Problem 1: Extract USA customers</h3>
+    <pre>usa_customers = customers_rdd.filter(lambda c: c['country'] == 'USA')
+
+print(f"USA customers: {usa_customers.count()}")
+print("Sample USA customers:")
+for customer in usa_customers.take(5):
+    print(f"  {customer['name']} from {customer['city']}")</pre>
+
+    <h3>Problem 2: Create (city, country) tuples</h3>
+    <pre>city_country = customers_rdd.map(lambda c: (c['city'], c['country']))
+
+print("Sample city-country pairs:")
+for pair in city_country.take(10):
+    print(f"  {pair}")</pre>
+
+    <h3>Problem 3: Format customer IDs like "CUST-00001"</h3>
+    <pre>formatted_ids = customers_rdd.map(lambda c: (c['id'], f"CUST-{c['id']:05d}"))
+
+print("Sample formatted IDs:")
+for customer_id, formatted in formatted_ids.take(10):
+    print(f"  {customer_id} → {formatted}")</pre>
+
+    <h3>Problem 4: High-value customers (> $50,000)</h3>
+    <pre>high_value = customers_rdd.filter(lambda c: c['credit_limit'] > 50000)
+
+print(f"High-value customers: {high_value.count()}")
+print("Sample high-value customers:")
+for customer in high_value.take(5):
+    print(f"  {customer['name']:30s} | ${customer['credit_limit']:,.2f}")</pre>
+
+    <h3>Problem 5: Customer summary with credit tier</h3>
+    <pre>def get_tier(credit):
+    if credit > 75000:
+        return "High"
+    elif credit >= 25000:
+        return "Medium"
+    else:
+        return "Low"
+
+customer_summary = customers_rdd.map(lambda c: (
+    c['id'],
+    c['name'],
+    c['segment'],
+    get_tier(c['credit_limit'])
+))
+
+print("Sample customer summaries:")
+for cid, name, segment, tier in customer_summary.take(10):
+    print(f"  {cid:4d} | {name:30s} | {segment:10s} | {tier}")</pre>
+
+    <h3>BONUS: Average credit limit by segment</h3>
+    <pre>segment_credit = customers_rdd.map(lambda c: (c['segment'], (c['credit_limit'], 1)))
+
+avg_by_segment = segment_credit \
+    .reduceByKey(lambda a, b: (a[0] + b[0], a[1] + b[1])) \
+    .mapValues(lambda x: x[0] / x[1])
+
+print("Average credit limit by segment:")
+for segment, avg in sorted(avg_by_segment.collect()):
+    print(f"  {segment:10s}: ${avg:,.2f}")</pre>
+
+    <div class="key-points">
+        <h3> Points Clés à Retenir</h3>
+        <ul>
+            <li><strong>Default partitions</strong> = nombre de cœurs CPU en mode local</li>
+            <li><strong>Règle d'or :</strong> 2–4 partitions par cœur</li>
+            <li><code>repartition()</code> <span class="arrow">→</span> shuffle obligatoire, <code>coalesce()</code>
+                <span class="arrow">→</span> évite le shuffle (quand on réduit)
+            </li>
+            <li><code>map()</code> <span class="arrow">→</span> 1 entrée → 1 sortie, <code>mapPartitions()</code> <span
+                    class="arrow">→</span> 1 partition → plusieurs sorties (plus performant si setup coûteux)</li>
+            <li><code>map()</code> ne change jamais le nombre d'éléments</li>
+        </ul>
+    </div>
+
+    <footer
+        style="text-align: center; margin-top: 60px; padding-top: 20px; border-top: 1px solid #ecf0f1; color: #7f8c8d;">
+        <p>Guide complet LAB 2.1 - Apache Spark | 404 NOT FOUND</p>
+    </footer>
+</body>
+
+</html>
